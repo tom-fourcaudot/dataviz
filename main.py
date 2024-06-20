@@ -30,6 +30,12 @@ df['remote_ratio'] = df['remote_ratio'].map({0: 'no remote', 50: 'semi remote', 
 average_salaries_by_location = df.groupby('company_location')['salary_in_usd'].mean().reset_index()
 average_salaries_by_location = average_salaries_by_location.sort_values(by='salary_in_usd')
 
+# Calculer les salaires moyens par métier
+average_salaries_by_job = df.groupby('job_title')['salary_in_usd'].mean().reset_index()
+
+# Trier par salaire moyen
+average_salaries_by_job = average_salaries_by_job.sort_values(by='salary_in_usd')
+
 # Calculer le nombre de réponses par pays (localisation de l'entreprise)
 response_count_by_location = df['company_location'].value_counts().reset_index()
 response_count_by_location.columns = ['company_location', 'response_count']
@@ -87,6 +93,14 @@ choropleth_responses.update_layout(
     margin=dict(l=0, r=0, t=50, b=0)  # Ajuster les marges pour plus d'espace
 )
 
+# Graphique 8: Histogramme des salaires par metiers
+job_bar = px.bar(average_salaries_by_job, y='job_title', x='salary_in_usd', 
+                 title='Salaires moyens par emploie (Ordre croissant)', orientation='h')
+job_bar.update_layout(
+    height=800,  # Augmenter la hauteur de la figure pour plus d'espace pour les barres
+    bargap=0.1  # Réduire l'espacement entre les barres
+)
+
 # Initialiser l'application Dash
 app = dash.Dash(__name__)
 
@@ -107,9 +121,10 @@ trust_layout = html.Div(children=[
         html.Img(src='assets/trustData.png', style={'width': '3`00px'}),  # Afficher le logo
         html.H1(children='Dev for pa$$ion, manipulateurs...')
     ], style={'display': 'flex', 'alignItems': 'center'}),  # Alignement horizontal et centrage
-    dcc.Graph(id='histogram', figure=histogram),
     dcc.Graph(id='choropleth_responses', figure=choropleth_responses),
     dcc.Graph(id='pie_chart', figure=pie_chart),
+    dcc.Graph(id='histogram', figure=histogram),
+    dcc.Graph(id='job_bar', figure=job_bar),
 ], style={'width': '95%', 'margin': 'auto'})
 
 # Layout principal avec le gestionnaire d'URL
@@ -129,4 +144,4 @@ def display_page(pathname):
 
 # Exécuter l'application
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
