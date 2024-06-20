@@ -4,6 +4,7 @@ import dash_html_components as html
 import plotly.express as px
 import pandas as pd
 from country_dict import country_dict
+from dash.dependencies import Input, Output
 
 # Charger le dataset
 df = pd.read_csv('data.csv')
@@ -33,20 +34,6 @@ average_salaries_by_location = average_salaries_by_location.sort_values(by='sala
 response_count_by_location = df['company_location'].value_counts().reset_index()
 response_count_by_location.columns = ['company_location', 'response_count']
 
-# Regrouper les pays représentant moins de 1% des réponses dans une catégorie "Autres"
-total_responses = response_count_by_location['response_count'].sum()
-response_count_by_location['percentage'] = response_count_by_location['response_count'] / total_responses
-
-# Calculer le nombre de pays regroupés
-num_countries_other = (response_count_by_location['percentage'] < 0.01).sum()
-
-# Mettre à jour les labels pour inclure le nombre de pays dans "Autres"
-response_count_by_location['company_location'] = response_count_by_location.apply(
-    lambda row: f'Autres {num_countries_other}' if row['percentage'] < 0.01 else row['company_location'], axis=1)
-
-# Recalculer le nombre de réponses après regroupement
-response_count_by_location = response_count_by_location.groupby('company_location').sum().reset_index()
-
 # Calculer les salaires moyens par pays
 average_salaries_by_country = df.groupby('employee_residence')['salary_in_usd'].mean().reset_index()
 average_salaries_by_country.columns = ['country', 'average_salary']
@@ -62,7 +49,7 @@ boxplot = px.box(df, x='experience_level', y='salary_in_usd', title='Salaires pa
 barplot = px.bar(average_salaries_by_location, y='company_location', x='salary_in_usd', 
                  title='Salaires moyens par localisation (Ordre croissant)', orientation='h')
 barplot.update_layout(
-    height=800,  # Augmenter la hauteur de la figure pour plus d'espace pour les barres
+    height=1300,  # Augmenter la hauteur de la figure pour plus d'espace pour les barres
     bargap=0.1  # Réduire l'espacement entre les barres
 )
 
@@ -71,11 +58,8 @@ histogram = px.histogram(df, x='salary_in_usd', nbins=50, title='Distribution de
 
 # Graphique 4: Pie chart du nombre de réponses par localisation avec regroupement
 pie_chart = px.pie(response_count_by_location, values='response_count', names='company_location',
-                   title=f'Répartition des réponses par localisation (Autres {num_countries_other} pays)', hole=0.3)
-pie_chart.update_traces(textinfo='percent+label', 
-                        textposition='inside',
-                        texttemplate='%{label}: %{percent:.1%f}',
-                        hovertemplate='%{label}: %{percent:.2%f} (%{value})',
+                   title=f'Répartition des réponses par localisation', hole=0.3)
+pie_chart.update_traces(textinfo='none',
                         pull=[0.05]*len(response_count_by_location))
 
 # Graphique 5: Boxplot des salaires par taux de télétravail
@@ -107,17 +91,42 @@ choropleth_responses.update_layout(
 app = dash.Dash(__name__)
 
 # Définir la disposition de l'application
-app.layout = html.Div(children=[
-    html.H1(children='Analyse des salaires des développeurs en 2024'),
+passion_layout = html.Div(children=[
+    html.Div([
+        html.Img(src='assets/logo.png', style={'width': '3`00px'}),  # Afficher le logo
+        html.H1(children='Analyse des salaires des développeurs en 2024')
+    ], style={'display': 'flex', 'alignItems': 'center'}),  # Alignement horizontal et centrage
     dcc.Graph(id='remote_salary_boxplot', figure=remote_salary_boxplot),
     dcc.Graph(id='boxplot', figure=boxplot),
     dcc.Graph(id='choropleth_salary', figure=choropleth_salary),
     dcc.Graph(id='barplot', figure=barplot),
-    dcc.Graph(id='histogram', figure=histogram),
-    dcc.Graph(id='pie_chart', figure=pie_chart),
-    dcc.Graph(id='choropleth_responses', figure=choropleth_responses),
 ], style={'width': '95%', 'margin': 'auto'})
+
+trust_layout = html.Div(children=[
+     html.Div([
+        html.Img(src='assets/trustData.png', style={'width': '3`00px'}),  # Afficher le logo
+        html.H1(children='Dev for pa$$ion, manipulateurs...')
+    ], style={'display': 'flex', 'alignItems': 'center'}),  # Alignement horizontal et centrage
+    dcc.Graph(id='histogram', figure=histogram),
+    dcc.Graph(id='choropleth_responses', figure=choropleth_responses),
+    dcc.Graph(id='pie_chart', figure=pie_chart),
+], style={'width': '95%', 'margin': 'auto'})
+
+# Layout principal avec le gestionnaire d'URL
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='page-content')
+])
+
+# Callback pour mettre à jour le contenu de la page en fonction de l'URL
+@app.callback(Output('page-content', 'children'),
+              [Input('url', 'pathname')])
+def display_page(pathname):
+    if pathname == '/trustData':
+        return trust_layout
+    else:
+        return passion_layout
 
 # Exécuter l'application
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
