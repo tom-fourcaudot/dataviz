@@ -19,6 +19,18 @@ df['salary'] = df['salary'].astype(float)
 df['salary_in_usd'] = df['salary_in_usd'].astype(float)
 df['remote_ratio'] = df['remote_ratio'].astype(int)
 
+# Calculer le pourcentage de données provenant des US vs autres pays
+total_count = len(df)
+us_count = len(df[df['company_location'].str.upper() == 'US'])
+other_count = total_count - us_count
+
+# Créer les données pour le diagramme en camembert
+data = {
+    'Location': ['US', 'Other'],
+    'Count': [us_count, other_count]
+}
+df_pie = pd.DataFrame(data)
+
 # Convertir les abréviations de pays en noms complets
 df['employee_residence'] = df['employee_residence'].map(country_dict)
 df['company_location'] = df['company_location'].map(country_dict)
@@ -26,9 +38,10 @@ df['company_location'] = df['company_location'].map(country_dict)
 # Renommer les valeurs de remote_ratio
 df['remote_ratio'] = df['remote_ratio'].map({0: 'no remote', 50: 'semi remote', 100: 'full remote'})
 
+
 # Trier les salaires moyens par localisation par ordre croissant
 average_salaries_by_location = df.groupby('company_location')['salary_in_usd'].mean().reset_index()
-average_salaries_by_location = average_salaries_by_location.sort_values(by='salary_in_usd')
+average_salaries_by_location = average_salaries_by_location.sort_values(by='salary_in_usd').tail(25)
 
 # Calculer les salaires moyens par métier
 average_salaries_by_job = df.groupby('job_title')['salary_in_usd'].mean().reset_index()
@@ -41,12 +54,14 @@ response_count_by_location = df['company_location'].value_counts().reset_index()
 response_count_by_location.columns = ['company_location', 'response_count']
 
 # Calculer les salaires moyens par pays
-average_salaries_by_country = df.groupby('employee_residence')['salary_in_usd'].mean().reset_index()
+average_salaries_by_country = df.groupby('company_location')['salary_in_usd'].mean().reset_index()
 average_salaries_by_country.columns = ['country', 'average_salary']
 
 # Calculer le nombre de réponses par pays
-response_count_by_country = df['employee_residence'].value_counts().reset_index()
+response_count_by_country = df['company_location'].value_counts().reset_index()
 response_count_by_country.columns = ['country', 'response_count']
+
+pie_us_vs_other = px.pie(df_pie, values='Count', names='Location', title='Pourcentage de données provenant des US vs autres pays', color_discrete_sequence=['blue', 'red'])
 
 # Graphique 1: Boxplot des salaires par niveau d'expérience
 boxplot = px.box(df, x='experience_level', y='salary_in_usd', title='Salaires par niveau d\'expérience')
@@ -55,7 +70,7 @@ boxplot = px.box(df, x='experience_level', y='salary_in_usd', title='Salaires pa
 barplot = px.bar(average_salaries_by_location, y='company_location', x='salary_in_usd', 
                  title='Salaires moyens par localisation (Ordre croissant)', orientation='h')
 barplot.update_layout(
-    height=1300,  # Augmenter la hauteur de la figure pour plus d'espace pour les barres
+    height=800,  # Augmenter la hauteur de la figure pour plus d'espace pour les barres
     bargap=0.1  # Réduire l'espacement entre les barres
 )
 
@@ -122,7 +137,11 @@ trust_layout = html.Div(children=[
         html.H1(children='Dev for pa$$ion, manipulateurs...')
     ], style={'display': 'flex', 'alignItems': 'center'}),  # Alignement horizontal et centrage
     dcc.Graph(id='choropleth_responses', figure=choropleth_responses),
-    dcc.Graph(id='pie_chart', figure=pie_chart),
+    html.Div([
+        dcc.Graph(id='us_vs_other', figure=pie_us_vs_other),
+
+        dcc.Graph(id='pie_chart', figure=pie_chart),
+    ]),
     dcc.Graph(id='histogram', figure=histogram),
     dcc.Graph(id='job_bar', figure=job_bar),
 ], style={'width': '95%', 'margin': 'auto'})
@@ -144,4 +163,4 @@ def display_page(pathname):
 
 # Exécuter l'application
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
